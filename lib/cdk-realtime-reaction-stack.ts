@@ -13,19 +13,36 @@ export class CdkRealtimeReactionStack extends cdk.Stack {
       displayName: "ReactionTopic",
     });
 
+    /*const userPoolClient = new cognito.UserPoolClient(this, "UserPoolClient", {
+      userPool: new cognito.UserPool(this, "UserPool", {
+        selfSignUpEnabled: true,
+        signInAliases: { email: true },
+      }),
+      userPoolClientName: "ReactionUserPoolClient",
+      generateSecret: false,
+      authFlows: {
+        userPassword: true,
+        userSrp: true,
+      },
+    });*/
+
     const identityPool = new cognito.CfnIdentityPool(this, "IdentityPool", {
       allowUnauthenticatedIdentities: true,
     });
 
-    const unauthenticatedRole = new iam.Role(this, "unauthRole", {
-      assumedBy: new iam.FederatedPrincipal("cognito-identity.amazonaws.com", {
-        StringEquals: {
-          "cognito-identity.amazonaws.com:aud": identityPool.ref,
+    const authenticatedRole = new iam.Role(this, "authRole", {
+      assumedBy: new iam.FederatedPrincipal(
+        "cognito-identity.amazonaws.com",
+        {
+          StringEquals: {
+            "cognito-identity.amazonaws.com:aud": identityPool.ref,
+          },
+          "ForAnyValue:StringLike": {
+            "cognito-identity.amazonaws.com:amr": "authenticated",
+          },
         },
-        "ForAnyValue:StringLike": {
-          "cognito-identity.amazonaws.com:amr": "unauthenticated",
-        },
-      }),
+        "sts:AssumeRoleWithWebIdentity"
+      ),
       inlinePolicies: {
         policy: new iam.PolicyDocument({
           statements: [
@@ -37,6 +54,48 @@ export class CdkRealtimeReactionStack extends cdk.Stack {
           ],
         }),
       },
+    });
+
+    const unauthenticatedRole = new iam.Role(this, "unauthRole", {
+      assumedBy: new iam.FederatedPrincipal(
+        "cognito-identity.amazonaws.com",
+        {
+          StringEquals: {
+            "cognito-identity.amazonaws.com:aud": identityPool.ref,
+          },
+          "ForAnyValue:StringLike": {
+            "cognito-identity.amazonaws.com:amr": "unauthenticated",
+          },
+        },
+        "sts:AssumeRoleWithWebIdentity"
+      ),
+      inlinePolicies: {
+        policy: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              actions: ["sns:Subscribe"],
+              effect: iam.Effect.ALLOW,
+              resources: [reactionTopic.topicArn],
+            }),
+          ],
+        }),
+      },
+    });
+
+    new cognito.CfnIdentityPoolRoleAttachment(
+      this,
+      "AttachUnauthenticatedRole",
+      {
+        identityPoolId: identityPool.ref,
+        roles: {
+          authenticated: authenticatedRole.roleArn,
+          unauthenticated: unauthenticatedRole.roleArn,
+        },
+      }
+    );
+
+    new cdk.CfnOutput(this, "IdentityPoolId", {
+      value: identityPool.ref,
     });
   }
 }
