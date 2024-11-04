@@ -41,6 +41,19 @@ export class CdkWebsocketLambdaStack extends cdk.Stack {
     );
     table.grantReadWriteData(onDisconnectFunction);
 
+    const sendMessageFunction = new aws_lambda_nodejs.NodejsFunction(
+      this,
+      "SendMessageFunction",
+      {
+        entry: "lambda/websocket/send-message.ts",
+        handler: "handler",
+        environment: {
+          TABLE_NAME: table.tableName,
+        },
+      }
+    );
+    table.grantReadData(sendMessageFunction);
+
     const webSocketApi = new apigwv2.WebSocketApi(this, "WebSocketsApi", {
       routeSelectionExpression: "$request.body.action",
       connectRouteOptions: {
@@ -58,6 +71,14 @@ export class CdkWebsocketLambdaStack extends cdk.Stack {
     });
     webSocketApi.grantManageConnections(onConnectFunction);
     webSocketApi.grantManageConnections(onDisconnectFunction);
+
+    webSocketApi.addRoute("send-message", {
+      integration: new apigwv2_integrations.WebSocketLambdaIntegration(
+        "SendMessageIntegration",
+        sendMessageFunction
+      ),
+    });
+    webSocketApi.grantManageConnections(sendMessageFunction);
 
     new WebSocketStage(this, "ProdStage", {
       webSocketApi,
