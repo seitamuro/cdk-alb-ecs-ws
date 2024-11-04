@@ -1,4 +1,5 @@
 import { CognitoIdentityClient } from "@aws-sdk/client-cognito-identity";
+import { SNSClient, SubscribeCommand } from "@aws-sdk/client-sns";
 import {
   CognitoIdentityCredentials,
   fromCognitoIdentityPool,
@@ -26,7 +27,28 @@ const showAccessTokens = async (credentials: CognitoIdentityCredentials) => {
 
 const main = async () => {
   const credentials = await credentialsProvider();
-  showAccessTokens(credentials);
+
+  const snsClient = new SNSClient({
+    region: REGION,
+    credentials: credentials,
+  });
+
+  const subscribeCommand = new SubscribeCommand({
+    Protocol: "https",
+    TopicArn:
+      "arn:aws:sns:us-east-1:230806776430:CdkRealtimeReactionStack-ReactionTopic81B813D4-QO0RaSwJmSk4",
+    Endpoint:
+      "https://5dmceb46zhjnjdcxkw4wceu2rq0ztecx.lambda-url.us-east-1.on.aws/",
+  });
+
+  try {
+    await snsClient.send(subscribeCommand);
+    console.log("Subscribed to SNS topic");
+  } catch (err) {
+    console.error(err);
+  }
+
+  //showAccessTokens(credentials);
 };
 
 main();

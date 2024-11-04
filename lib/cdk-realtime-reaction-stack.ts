@@ -13,19 +13,6 @@ export class CdkRealtimeReactionStack extends cdk.Stack {
       displayName: "ReactionTopic",
     });
 
-    /*const userPoolClient = new cognito.UserPoolClient(this, "UserPoolClient", {
-      userPool: new cognito.UserPool(this, "UserPool", {
-        selfSignUpEnabled: true,
-        signInAliases: { email: true },
-      }),
-      userPoolClientName: "ReactionUserPoolClient",
-      generateSecret: false,
-      authFlows: {
-        userPassword: true,
-        userSrp: true,
-      },
-    });*/
-
     const identityPool = new cognito.CfnIdentityPool(this, "IdentityPool", {
       allowUnauthenticatedIdentities: true,
     });
